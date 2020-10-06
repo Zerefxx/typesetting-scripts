@@ -473,8 +473,7 @@ __wobble_text = function( txt_shape, vals, rand )
 			local wbstx, wbsty = vals[ 2 ] or 10, vals[ 4 ] or 10
 			local sx = x + math.cos(y * (wbfx * 0.001) * math.pi * 2) * wbstx
 			local sy = y + math.sin(x * (wbfy * 0.001) * math.pi * 2) * wbsty
-			x = sx
-			y = sy
+			x, y = sx, sy
 			return x, y
 		end
 		)
@@ -485,8 +484,7 @@ __wobble_text = function( txt_shape, vals, rand )
 			local wbstx, wbsty = math.random( vals[ 2 ], -vals[ 2 ] ) or 10, math.random( vals[ 4 ], -vals[ 4 ] ) or 10
 			local sx = x + math.cos(y * (wbfx * 0.001) * math.pi * 2) * wbstx
 			local sy = y + math.sin(x * (wbfy * 0.001) * math.pi * 2) * wbsty
-			x = sx
-			y = sy
+			x, y = sx, sy
 			return x, y
 		end
 		)
