@@ -389,7 +389,7 @@ __text_to_shape = function( line )
 	}
 	-- DETECTA OS VALORES DAS TAGS DA LINHA QUE SELECIONOU
 	local tags_configs = {
-		Text_cfg:match("\\fn[%s+]*(%a+[%s+%a+]*)"),
+		Text_cfg:match("\\fn[%s+]*([^\\]*)"),
 		Text_cfg:match("\\b[%s+]*%d") and (Text_cfg:match("\\b[%s+]*(%d)") == "1" and true or false) or nil,
 		Text_cfg:match("\\i[%s+]*%d") and (Text_cfg:match("\\i[%s+]*(%d)") == "1" and true or false) or nil,
 		Text_cfg:match("\\u[%s+]*%d") and (Text_cfg:match("\\u[%s+]*(%d)") == "1" and true or false) or nil,
@@ -466,7 +466,7 @@ __ipol_n = function( vals, loop, algorithm )
 	return ipols
 end
 
-__wobble_text = function( txt_shape, vals )
+__wobble_text = function( txt_shape, vals, rand )
 	local text_shape = Yutils.shape.filter( Yutils.shape.split( Yutils.shape.flatten( txt_shape ), 1),
 		function(x, y)
 			local wbfx, wbfy = vals[ 1 ] or 10, vals[ 3 ] or 10
@@ -477,32 +477,57 @@ __wobble_text = function( txt_shape, vals )
 			y = sy
 			return x, y
 		end
-	)
+		)
+	if rand then
+		text_shape = Yutils.shape.filter( Yutils.shape.split( Yutils.shape.flatten( txt_shape ), 1),
+		function(x, y)
+			local wbfx, wbfy = math.random( vals[ 1 ], -vals[ 1 ] ) or 10, math.random( vals[ 3 ], -vals[ 3 ] ) or 10
+			local wbstx, wbsty = math.random( vals[ 2 ], -vals[ 2 ] ) or 10, math.random( vals[ 4 ], -vals[ 4 ] ) or 10
+			local sx = x + math.cos(y * (wbfx * 0.001) * math.pi * 2) * wbstx
+			local sy = y + math.sin(x * (wbfy * 0.001) * math.pi * 2) * wbsty
+			x = sx
+			y = sy
+			return x, y
+		end
+		)
+	end
 	return text_shape
 end
 
-__generate_wobble = function( txt_shape, vals1, vals2, cont, loop )
+__generate_wobble = function( txt_shape, vals1, vals2, cont, loop, rand )
 	-- vals1 = { 1, 2, 3, 4 }
 	-- vals2 = { 1, 2, 3, 4 }
 	local table_wob = {}
 	local v1 = { vals1[ 1 ], vals1[ 2 ], vals1[ 3 ], vals1[ 4 ] }
 	local v2 = { vals2[ 1 ], vals2[ 2 ], vals2[ 3 ], vals2[ 4 ] }
-	for k = 1, loop do
-		local val = { __wobble_text( txt_shape, v1 ), __wobble_text( txt_shape, v2 ) }
-		if cont > 1 then
-			for v = 1, cont do
-				table.insert( val, val[ v ] )
+	if rand then
+		for k = 1, loop do
+			local val = { __wobble_text( txt_shape, v1, rand ), __wobble_text( txt_shape, v2, rand ) }
+			if cont > 1 then
+				for v = 1, cont do
+					table.insert( val, val[ v ] )
+				end
 			end
+			table_wob[ k ] = __ipol_n( val, loop )[ k ]
 		end
-		table_wob[ k ] = __ipol_n( val, loop )[ k ]
+	else
+		for k = 1, loop do
+			local val = { __wobble_text( txt_shape, v1 ), __wobble_text( txt_shape, v2 ) }
+			if cont > 1 then
+				for v = 1, cont do
+					table.insert( val, val[ v ] )
+				end
+			end
+			table_wob[ k ] = __ipol_n( val, loop )[ k ]
+		end
 	end
 	return table_wob
 end
 
-__wobble = function( subs, sel, vals, del )
+__wobble = function( subs, sel, vals, del, rand )
 	local meta, styles = karaskel.collect_head( subs )
 	local add = 0
-	aegisub.progress.task( "Applying Wobble..." )
+	aegisub.progress.task( "Generating Wobble..." )
 	for _, i in ipairs( sel ) do
 		aegisub.progress.set( (i - 1)/#sel * 100 )
 		local l = subs[ i + add ]
@@ -511,9 +536,10 @@ __wobble = function( subs, sel, vals, del )
 		local texto, tags = l.text
 		if texto:match( "%b{}" ) then
 			tags = texto:match( "%b{}" )
-			:gsub( "\\fn[%s+]*(%a+[%s+%a+]*)", "" )
+			:gsub( "\\fn[%s+]*([^\\]*)", "" )
 			:gsub( "\\fs[%s+]*%d+[%.%d+]*", "" )
 			:gsub( "\\fsp[%s+%-]*%d+[%.%d+]*", "" )
+			:gsub( "\\fsc[xy]*[%s+]*%d+[%.%d+]*", "" )
 			:gsub( "\\b[%s+]*%d+", "" )
 			:gsub( "\\i[%s+]*%d+", "" )
 			:gsub( "\\s[%s+]*%d+", "" )
@@ -537,16 +563,19 @@ __wobble = function( subs, sel, vals, del )
 		local v = { vals[ 1 ], vals[ 2 ], vals[ 3 ], vals[ 4 ] }
 		local line = table.copy( l )
 		line.text = tags .. __wobble_text( __text_to_shape( l ), vals )
+		if rand then
+			line.text = tags .. __wobble_text( __text_to_shape( l ), vals, true )
+		end
 		subs.insert( i + add + 1, line )
 		add = add + 1
 	end
 	aegisub.progress.set( 100 )
 end
 
-__wobble_animation = function( subs, sel, accel, vals, cont, del )
+__wobble_animation = function( subs, sel, accel, vals, cont, del, rand )
 	local meta, styles = karaskel.collect_head( subs )
 	local accel, add = accel or 1, 0
-	aegisub.progress.task( "Applying Wobble..." )
+	aegisub.progress.task( "Generating Wobble..." )
 	for _, i in ipairs( sel ) do
 		aegisub.progress.set( (i - 1)/#sel * 100 )
 		local l = subs[ i + add ]
@@ -555,9 +584,10 @@ __wobble_animation = function( subs, sel, accel, vals, cont, del )
 		local texto, tags = l.text
 		if texto:match( "%b{}" ) then
 			tags = texto:match( "%b{}" )
-			:gsub( "\\fn[%s+]*(%a+[%s+%a+]*)", "" )
+			:gsub( "\\fn[%s+]*([^\\]*)", "" )
 			:gsub( "\\fs[%s+]*%d+[%.%d+]*", "" )
 			:gsub( "\\fsp[%s+%-]*%d+[%.%d+]*", "" )
+			:gsub( "\\fsc[xy]*[%s+]*%d+[%.%d+]*", "" )
 			:gsub( "\\b[%s+]*%d+", "" )
 			:gsub( "\\i[%s+]*%d+", "" )
 			:gsub( "\\s[%s+]*%d+", "" )
@@ -568,7 +598,7 @@ __wobble_animation = function( subs, sel, accel, vals, cont, del )
 			else
 				tags = tags:gsub( "}", "\\fscx100\\fscy100\\p1}" )
 			end
-		else 
+		else
 			tags = "{\\fscx100\\fscy100\\p1}"
 		end
 		subs[ i + add ] = l
@@ -593,13 +623,16 @@ __wobble_animation = function( subs, sel, accel, vals, cont, del )
 		end
 		--
 		local ls, le, lf = l.start_time, l.end_time, l.end_time - l.start_time
-		local frames = math.ceil( lf / (frame_dur * accel) )
+		local frames = lf / (frame_dur * accel)
 		for k = 1, frames do
 			l.comment = false
 			local line = table.copy( l )
 			line.start_time = ls + lf * (k - 1)/frames
 			line.end_time = ls + lf * k/frames
 			line.text = tags .. __generate_wobble( __text_to_shape( l ), v1, v2, cont, frames )[ k ]
+			if rand then
+				line.text = tags .. __generate_wobble( __text_to_shape( l ), v1, v2, cont, frames, true )[ k ]
+			end
 			subs.insert( i + add + 1, line )
 			add = add + 1
 		end
@@ -608,7 +641,7 @@ __wobble_animation = function( subs, sel, accel, vals, cont, del )
 end
 
 __wave = function( subs, sel )
-	local bx, ck = aegisub.dialog.display( GUI, { "Run", "Exit" } )
+	local bx, ck = aegisub.dialog.display( GUI, { "Run", "Random", "Exit" } )
 	GUI[ 1 ].value  = ck.ftr
 	GUI[ 8 ].value  = ck.accel
 	GUI[ 9 ].value  = ck.cont
@@ -632,6 +665,20 @@ __wave = function( subs, sel )
 				return __wobble( subs, sel, vals )
 			end
 		end
+	elseif bx == "Random" then
+		if GUI[ 14 ].value == true then
+			if GUI[ 1 ].value == true then
+				return __wobble_animation( subs, sel, GUI[ 8 ].value, vals, GUI[ 9 ].value, true, true )
+			else
+				return __wobble_animation( subs, sel, GUI[ 8 ].value, vals, GUI[ 9 ].value, false, true )
+			end
+		else
+			if GUI[ 1 ].value == true then
+				return __wobble( subs, sel, vals, true, true )
+			else
+				return __wobble( subs, sel, vals, false, true )
+			end
+		end
 	end
 end
 --
@@ -640,3 +687,4 @@ script_description = "Generates wobbles in the text coordinatess"
 script_author      = "Zeref-FX"
 --
 aegisub.register_macro( script_name, script_description, __wave )
+aegisub.register_filter( script_name, script_description, 2000, __wave )
