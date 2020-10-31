@@ -1,9 +1,10 @@
 include("karaskel.lua")
 
-script_description = "Create curves from vector coordinates or from clip vectors from your line."
-script_version = "1.5"
+script_name = "Curve Text"
+script_description = "Create curves from vector coordinates or from clip vectors from your text."
+script_version = "1.6"
 
-KE = {math = {}, tag = {}}
+KE = {math = {}, tag = {}, text = {}}
 
 KE.math.round = function(x, dec) -- Arredonda um determinado valor
     if dec and dec >= 1 then dec = 10 ^ math.floor(dec)
@@ -27,30 +28,38 @@ KE.charcap = function(text) -- gera uma tabela com os caracteres de uma linha de
 end
 
 KE.dochar = function(line) -- gera cordenadas de caracteres, width, left e center
-    local tchar = KE.charcap(line.text_stripped)
+    local l = table.copy(line)
+    local tchar = KE.charcap(l.text_stripped)
     local char, char_nob = {}, {}
-    local left = line.left
-    if line.text:match("\\fn([^\\])") then line.styleref.fontname = line.text:match("\\fn([^\\])") end
-    if line.text:match("\\fs(%d+[%.%d+]*)") then line.styleref.fontsize = line.text:match("\\fs(%d+[%.%d+]*)") end
-    if line.text:match("\\fscx(%d+[%.%d+]*)") then line.styleref.scale_x = line.text:match("\\fscx(%d+[%.%d+]*)") end
-    if line.text:match("\\fscy(%d+[%.%d+]*)") then line.styleref.scale_y = line.text:match("\\fscy(%d+[%.%d+]*)") end
-    if line.text:match("\\fsp(%d+[%.%d+]*)") then line.styleref.spacing = line.text:match("\\fsp(%-?%d+[%.%d+]*)") end
-    if line.text:match("\\b1") then line.styleref.bold = true end
-    if line.text:match("\\i1") then line.styleref.italic = true end
-    if line.text:match("\\u1") then line.styleref.underline = true end
-    if line.text:match("\\s1") then line.styleref.strikeout = true end
+    local left, tags = l.left, ""
+    if l.text:match("%b{}") then
+        tags = l.text:match("%b{}")
+        if tags:match("\\fn[^\\}]*") then l.styleref.fontname = tags:match("\\fn([^\\}]*)") end
+        if tags:match("\\fs%d+[%.%d+]*") then l.styleref.fontsize = tags:match("\\fs(%d+[%.%d+]*)") end
+        if tags:match("\\fscx%d+[%.%d+]*") then l.styleref.scale_x = tags:match("\\fscx(%d+[%.%d+]*)") end
+        if tags:match("\\fscy%d+[%.%d+]*") then l.styleref.scale_y = tags:match("\\fscy(%d+[%.%d+]*)") end
+        if tags:match("\\fsp%-?%d+[%.%d+]*") then l.styleref.spacing = tags:match("\\fsp(%-?%d+[%.%d+]*)") end
+        if tags:match("\\b1") then l.styleref.bold = true end
+        if tags:match("\\i1") then l.styleref.italic = true end
+        if tags:match("\\u1") then l.styleref.underline = true end
+        if tags:match("\\s1") then l.styleref.strikeout = true end
+    end
+    local width = aegisub.text_extents(l.styleref, l.text_stripped)
     char.n, char.text = #tchar, ""
     for k = 1, char.n do
         char[k] = {}
         char[k].text_stripped = tchar[k]
         if char[k].text_stripped ~= " " then char_nob[#char_nob + 1] = char[k] end
-        char[k].width = aegisub.text_extents(line.styleref, tchar[k])
+        char[k].width = aegisub.text_extents(l.styleref, tchar[k])
         char[k].left = left
         char[k].center = left + char[k].width / 2
+        char[k].start_time = l.start_time
+        char[k].end_time = l.end_time
+        char[k].duration = char[k].end_time - char[k].start_time
         left = left + char[k].width
     end
     char_nob.text = char.text
-    return char_nob
+    return char_nob, width
 end
 
 KE.text.bezier = function(line, Shape, Char_x, Char_y, Mode, Offset) -- função que gera a curva bezier através de cordenadas de shapes
@@ -285,12 +294,7 @@ KE.text.bezier = function(line, Shape, Char_x, Char_y, Mode, Offset) -- função
         end
         return coord
     end
-    local l_width, l_left, l_descent = line.width, line.left, line.descent
-    if Shape == nil then
-        if line.text:match("\\i?clip%b()") then
-            Shape = line.text:match("\\i?clip%b()")
-        end
-    end
+    local l_width, l_left = line.width, line.left
     local pos_Bezier, vec_Bezier, cont_point, PtNo = {}, {}, {}, {}
     local nN, Blength, lineoffset = 8, 0, 0
     cont_point = pyointa.shape2coord(Shape)
@@ -329,14 +333,17 @@ KE.text.bezier = function(line, Shape, Char_x, Char_y, Mode, Offset) -- função
     return string.format("\\pos(%s,%s)\\fr%s", KE.math.round(pos_Bezier[1], 3), KE.math.round(pos_Bezier[2], 3), bezier_angle)
 end
 
-local modes = {"Center", "Left", "Right"}
+local frame_dur, msa, msb = 41.708, aegisub.ms_from_frame(1), aegisub.ms_from_frame(101)
+if msb then frame_dur = KE.math.round((msb - msa) / 100, 3) end
+
+local modes = {"Center", "Left", "Right", "Around", "Animated - Start to End", "Animated - End to Start"}
 local GUI = {
     {class = "label", label = ":Modes:", x = 0, y = 0},
     {class = "label", label = ":Offset:", x = 2, y = 0},
     {class = "label", label = ":Alternative Shape(Mask):", x = 0, y = 2},
-    {class = "dropdown", name = "vmodes", items = modes, hint = "Select the shape axis!", x = 0, y = 1, value = modes[ 1 ]},
-    {class = "intedit", name = "voff", hint = "How much 'offset' do you need?", x = 2, y = 1, value = 0},
-    {class = "textbox", name = "vshape", hint = "Type an alternative shape. :)", x = 0, y = 3, width = 4, height = 4, text = ""},
+    {class = "dropdown", name = "vmodes", items = modes, hint = "Select the final axis of the text :)", x = 0, y = 1, value = modes[1]},
+    {class = "intedit", name = "voff", hint = "How much \"offset\" do you need?\nIn case of using the animation modes\nthis will become the step :)", x = 2, y = 1, value = 0},
+    {class = "textbox", name = "vshape", hint = "Type an alternative shape :)", x = 0, y = 3, width = 4, height = 4, text = ""},
     {class = "checkbox", name = "vftl", label = ":Remove first line:", x = 0, y = 7, value = false},
 }
 
@@ -358,15 +365,15 @@ local master = function(subs, sel)
     GUI[7].value = ck.vftl
     --------------------------
     local meta, style = karaskel.collect_head(subs)
-    local delete, add, shape = 0, 0, ""
+    local add, shape = 0, ""
     if bx == "Run" then
         for _, i in ipairs(sel) do
             local l = subs[i + add]
-            local line_str = l.text:gsub("%b{}", "")
             karaskel.preproc_line(subs, meta, style, l)
-            l.comment = true
-            --
             local line = table.copy(l)
+            local charC, lwidth = KE.dochar(line)
+            line.width = lwidth
+            --
             local raw_txt, tags = line.text, ""
             local shp, mds, offst = GUI[6].value, GUI[4].value, GUI[5].value
             if raw_txt:match("%b{}") then
@@ -393,20 +400,48 @@ local master = function(subs, sel)
                 end
             end
             --
-            if shape == "" then l.comment = false end
+            l.comment = true
             subs[i + add] = l
             if GUI[7].value == true then
-                subs.delete(i + delete)
-                delete = delete - 1
+                subs.delete(i + add)
+                add = add - 1
             end
             --
             if mds == "Center" then mds = 1 elseif mds == "Left" then mds = 2 elseif mds == "Right" then mds = 3 end
-            local charC = KE.dochar(line)
-            if shape ~= "" then
-                for k = 1, #charC do
-                    line.comment = false
-                    local curve = KE.text.bezier(line, shape, charC[k].center, line.middle, mds, offst)
-                    line.text = string.format("{%s}%s", curve .. tags:sub(2, -2), charC[k].text_stripped)
+            for k = 1, #charC do
+                line.comment = false
+                local char = charC[k]
+                local curve = KE.text.bezier(line, shape, char.center, line.middle, mds, offst)
+                local li, ld = char.start_time, char.duration
+                if mds == "Around" then
+                    curve = KE.text.bezier(line, shape, char.center, line.middle, 4, (k - 1)/(#charC - 1))
+                    line.text = string.format("{%s}%s", curve .. tags:sub(2, -2), char.text_stripped)
+                    subs.insert(i + add + 1, line)
+                    add = add + 1
+                elseif mds == "Animated - Start to End" then
+                    if offst <= 0 then offst = 1 end
+                    local loop = KE.math.round(line.duration/(frame_dur * offst), 3)
+                    for j = 1, loop do
+                        curve = KE.text.bezier(line, shape, char.center, line.middle, 4, (j - 1)/(loop - 1))
+                        line.start_time = li + ld * (j - 1) / loop
+                        line.end_time = li + ld * j / loop
+                        line.text = string.format("{%s}%s", curve .. tags:sub(2, -2), char.text_stripped)
+                        subs.insert(i + add + 1, line)
+                        add = add + 1
+                    end
+                elseif mds == "Animated - End to Start" then
+                    if offst <= 0 then offst = 1 end
+                    local loop = KE.math.round(line.duration/(frame_dur * offst), 3)
+                    for j = 1, loop do
+                        curve = KE.text.bezier(line, shape, char.center, line.middle, 5, (j - 1)/(loop - 1))
+                        line.start_time = li + ld * (j - 1) / loop
+                        line.end_time = li + ld * j / loop
+                        line.text = string.format("{%s}%s", curve .. tags:sub(2, -2), char.text_stripped)
+                        subs.insert(i + add + 1, line)
+                        add = add + 1
+                    end
+                else
+                    line.text = string.format("{%s}%s", curve .. tags:sub(2, -2), char.text_stripped)
                     subs.insert(i + add + 1, line)
                     add = add + 1
                 end
@@ -415,4 +450,4 @@ local master = function(subs, sel)
     end
 end
 
-aegisub.register_macro("Curve Text", script_description, master)
+aegisub.register_macro(script_name, script_description, master)
