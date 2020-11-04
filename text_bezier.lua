@@ -1,8 +1,8 @@
 include("karaskel.lua")
 
 script_name = "Curve Text"
-script_description = "Create curves from vector coordinates or from clip vectors from your text."
-script_version = "1.6"
+script_description = "Create curves from vector coordinates or from clip vectors from your line."
+script_version = "1.8"
 
 KE = {math = {}, tag = {}, text = {}}
 
@@ -12,11 +12,6 @@ KE.math.round = function(x, dec) -- Arredonda um determinado valor
     else
         return math.floor(x + 0.5)
     end
-end
-
-KE.tag.only = function(val, tr, fs) -- defini uma condição determinada
-    if val then return tr end
-    return fs or ""
 end
 
 KE.charcap = function(text) -- gera uma tabela com os caracteres de uma linha de texto
@@ -34,15 +29,15 @@ KE.dochar = function(line) -- gera cordenadas de caracteres, width, left e cente
     local left, tags = l.left, ""
     if l.text:match("%b{}") then
         tags = l.text:match("%b{}")
-        if tags:match("\\fn[^\\}]*") then l.styleref.fontname = tags:match("\\fn([^\\}]*)") end
-        if tags:match("\\fs%d+[%.%d+]*") then l.styleref.fontsize = tags:match("\\fs(%d+[%.%d+]*)") end
-        if tags:match("\\fscx%d+[%.%d+]*") then l.styleref.scale_x = tags:match("\\fscx(%d+[%.%d+]*)") end
-        if tags:match("\\fscy%d+[%.%d+]*") then l.styleref.scale_y = tags:match("\\fscy(%d+[%.%d+]*)") end
-        if tags:match("\\fsp%-?%d+[%.%d+]*") then l.styleref.spacing = tags:match("\\fsp(%-?%d+[%.%d+]*)") end
-        if tags:match("\\b1") then l.styleref.bold = true end
-        if tags:match("\\i1") then l.styleref.italic = true end
-        if tags:match("\\u1") then l.styleref.underline = true end
-        if tags:match("\\s1") then l.styleref.strikeout = true end
+        if tags:match("\\fn[%s+]*[^\\}]*") then l.styleref.fontname = tags:match("\\fn[%s+]*([^\\}]*)") end
+        if tags:match("\\fs[%s+]*%d+[%.%d+]*") then l.styleref.fontsize = tags:match("\\fs[%s+]*(%d+[%.%d+]*)") end
+        if tags:match("\\fscx[%s+]*%d+[%.%d+]*") then l.styleref.scale_x = tags:match("\\fscx[%s+]*(%d+[%.%d+]*)") end
+        if tags:match("\\fscy[%s+]*%d+[%.%d+]*") then l.styleref.scale_y = tags:match("\\fscy[%s+]*(%d+[%.%d+]*)") end
+        if tags:match("\\fsp[%s+]*%-?%d+[%.%d+]*") then l.styleref.spacing = tags:match("\\fsp[%s+]*(%-?%d+[%.%d+]*)") end
+        if tags:match("\\b[%s+]*1") then l.styleref.bold = true end
+        if tags:match("\\i[%s+]*1") then l.styleref.italic = true end
+        if tags:match("\\u[%s+]*1") then l.styleref.underline = true end
+        if tags:match("\\s[%s+]*1") then l.styleref.strikeout = true end
     end
     local width = aegisub.text_extents(l.styleref, l.text_stripped)
     char.n, char.text = #tchar, ""
@@ -329,8 +324,40 @@ KE.text.bezier = function(line, Shape, Char_x, Char_y, Mode, Offset) -- função
         pos_Bezier[2] = Char_y
         rot_Bezier = 0
     end
-    bezier_angle = KE.math.round(KE.tag.only(rot_Bezier < -180, rot_Bezier + 360, rot_Bezier), 3)
-    return string.format("\\pos(%s,%s)\\fr%s", KE.math.round(pos_Bezier[1], 3), KE.math.round(pos_Bezier[2], 3), bezier_angle)
+    bezier_angle = KE.math.round((rot_Bezier < -180 and rot_Bezier + 360 or rot_Bezier), 3)
+    return string.format("\\pos(%s,%s)\\frz%s", KE.math.round(pos_Bezier[1], 3), KE.math.round(pos_Bezier[2], 3), bezier_angle)
+end
+
+local tags2style = function(subs, vtext) -- encontra valores de tags e substitui diretamente no estilo
+    local meta, styles = karaskel.collect_head(subs)
+    local tags = ""
+    for k = 1, styles.n do
+        if vtext:match("%b{}") then
+            tags = vtext:match("%b{}")
+            if tags:match("\\an[%s+]*%d") then styles[k].align = tonumber(tags:match("\\an[%s+]*(%d)")) end
+            if tags:match("\\fn[%s+]*[^\\}]*") then styles[k].fontname = tags:match("\\fn[%s+]*([^\\}]*)") end
+            if tags:match("\\fs[%s+]*%d+[%.%d+]*") then styles[k].fontsize = tonumber(tags:match("\\fs[%s+]*(%d+[%.%d+]*)")) end
+            if tags:match("\\fscx[%s+]*%d+[%.%d+]*") then styles[k].scale_x = tonumber(tags:match("\\fscx[%s+]*(%d+[%.%d+]*)")) end
+            if tags:match("\\fscy[%s+]*%d+[%.%d+]*") then styles[k].scale_y = tonumber(tags:match("\\fscy[%s+]*(%d+[%.%d+]*)")) end
+            if tags:match("\\fsp[%s+]*%-?%d+[%.%d+]*") then styles[k].spacing = tonumber(tags:match("\\fsp[%s+]*(%-?%d+[%.%d+]*)")) end
+            if tags:match("\\bord[%s+]*%d+[%.%d+]*") then styles[k].outline = tonumber(tags:match("\\bord[%s+]*(%d+[%.%d+]*)")) end
+            if tags:match("\\shad[%s+]*%d+[%.%d+]*") then styles[k].shadow = tonumber(tags:match("\\shad[%s+]*(%d+[%.%d+]*)")) end
+            if tags:match("\\fr[%s+]*[z]*%-?%d+[%.%d+]*") then styles[k].angle = tonumber(tags:match("\\fr[z]*[%s+]*(%-?%d+[%.%d+]*)")) end
+            if tags:match("\\b[%s+]*1") then styles[k].bold = true end
+            if tags:match("\\i[%s+]*1") then styles[k].italic = true end
+            if tags:match("\\u[%s+]*1") then styles[k].underline = true end
+            if tags:match("\\s[%s+]*1") then styles[k].strikeout = true end
+        end
+    end
+    return meta, styles
+end
+
+local remove_tags = function(tags) -- remove algumas tags que iriam interferir na aplicação
+    tags = tags:gsub("\\i?clip%([%s+]*m%s+%-?%d+[%.%d]*%s+%-?%d+[%.%-%dmlb ]*%)", "")
+    :gsub("\\pos%b()", ""):gsub("\\move%b()", "")
+    :gsub("\\fr[z]*[%s+]*%-?%d+[%.%d+]*", "")
+    :gsub("\\fsp[%s+]*%-?%d+[%.%d+]*", "")
+    return tags
 end
 
 local frame_dur, msa, msb = 41.708, aegisub.ms_from_frame(1), aegisub.ms_from_frame(101)
@@ -347,15 +374,6 @@ local GUI = {
     {class = "checkbox", name = "vftl", label = ":Remove first line:", x = 0, y = 7, value = false},
 }
 
-local remove_tags = function(tags) -- remove algumas tags que iriam interferir na aplicação
-    tags = tags:gsub("\\i?clip%(([%s+]*m%s+%-?%d+[%.%d]*%s+%-?%d+[%.%-%dmlb ]*)%)", "")
-    :gsub("\\pos%b()", "")
-    :gsub("\\move%b()", "")
-    :gsub("\\fr[z]*%-?%d+[%.%d+]*", "")
-    :gsub("\\fsp%-?%d+[%.%d+]*", "")
-    return tags
-end
-
 local master = function(subs, sel)
     local bx, ck = aegisub.dialog.display(GUI, {"Run", "Cancel"})
     --------------------------
@@ -364,11 +382,11 @@ local master = function(subs, sel)
     GUI[6].value = ck.vshape
     GUI[7].value = ck.vftl
     --------------------------
-    local meta, style = karaskel.collect_head(subs)
     local add, shape = 0, ""
     if bx == "Run" then
         for _, i in ipairs(sel) do
             local l = subs[i + add]
+            local meta, style = tags2style(subs, l.text)
             karaskel.preproc_line(subs, meta, style, l)
             local line = table.copy(l)
             local charC, lwidth = KE.dochar(line)
@@ -450,4 +468,5 @@ local master = function(subs, sel)
     end
 end
 
+-- Modified 11/04/2020
 aegisub.register_macro(script_name, script_description, master)
