@@ -4,6 +4,8 @@ script_name = "Curve Text"
 script_description = "Create curves from vector coordinates or from clip vectors from your line."
 script_version = "1.8"
 
+-- Some functions used were done by Kara Effector, thanks --> https://github.com/KaraEffect0r
+
 KE = {math = {}, tag = {}, text = {}}
 
 KE.math.round = function(x, dec) -- Arredonda um determinado valor
@@ -24,20 +26,7 @@ end
 
 KE.dochar = function(line) -- gera cordenadas de caracteres, width, left e center
     local tchar = KE.charcap(line.text_stripped)
-    local char, char_nob = {}, {}
-    local left, tags = line.left, ""
-    if line.text:match("%b{}") then
-        tags = line.text:match("%b{}")
-        if tags:match("\\fn[%s+]*[^\\}]*") then line.styleref.fontname = tags:match("\\fn[%s+]*([^\\}]*)") end
-        if tags:match("\\fs[%s+]*%d+[%.%d+]*") then line.styleref.fontsize = tags:match("\\fs[%s+]*(%d+[%.%d+]*)") end
-        if tags:match("\\fscx[%s+]*%d+[%.%d+]*") then line.styleref.scale_x = tags:match("\\fscx[%s+]*(%d+[%.%d+]*)") end
-        if tags:match("\\fscy[%s+]*%d+[%.%d+]*") then line.styleref.scale_y = tags:match("\\fscy[%s+]*(%d+[%.%d+]*)") end
-        if tags:match("\\fsp[%s+]*%-?%d+[%.%d+]*") then line.styleref.spacing = tags:match("\\fsp[%s+]*(%-?%d+[%.%d+]*)") end
-        if tags:match("\\b[%s+]*1") then line.styleref.bold = true end
-        if tags:match("\\i[%s+]*1") then line.styleref.italic = true end
-        if tags:match("\\u[%s+]*1") then line.styleref.underline = true end
-        if tags:match("\\s[%s+]*1") then line.styleref.strikeout = true end
-    end
+    local char, char_nob, left = {}, {}, line.left
     char.n, char.text = #tchar, ""
     for k = 1, char.n do
         char[k] = {}
