@@ -371,8 +371,10 @@ local master = function(subs, sel)
     GUI[7].value = ck.vftl
     --------------------------
     local add, shape = 0, ""
+    aegisub.progress.task("Processing...")
     if bx == "Run" then
         for _, i in ipairs(sel) do
+            aegisub.progress.set((i - 1) / #sel * 100)
             local l = subs[i + add]
             local meta, style = tags2style(subs, l.text)
             karaskel.preproc_line(subs, meta, style, l)
@@ -464,7 +466,7 @@ local master = function(subs, sel)
             end
         end
     end
+    aegisub.progress.set(100)
 end
 
--- Modified 11/04/2020
 aegisub.register_macro(script_name, script_description, master)
