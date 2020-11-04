@@ -23,38 +23,37 @@ KE.charcap = function(text) -- gera uma tabela com os caracteres de uma linha de
 end
 
 KE.dochar = function(line) -- gera cordenadas de caracteres, width, left e center
-    local l = table.copy(line)
-    local tchar = KE.charcap(l.text_stripped)
+    local tchar = KE.charcap(line.text_stripped)
     local char, char_nob = {}, {}
-    local left, tags = l.left, ""
-    if l.text:match("%b{}") then
-        tags = l.text:match("%b{}")
-        if tags:match("\\fn[%s+]*[^\\}]*") then l.styleref.fontname = tags:match("\\fn[%s+]*([^\\}]*)") end
-        if tags:match("\\fs[%s+]*%d+[%.%d+]*") then l.styleref.fontsize = tags:match("\\fs[%s+]*(%d+[%.%d+]*)") end
-        if tags:match("\\fscx[%s+]*%d+[%.%d+]*") then l.styleref.scale_x = tags:match("\\fscx[%s+]*(%d+[%.%d+]*)") end
-        if tags:match("\\fscy[%s+]*%d+[%.%d+]*") then l.styleref.scale_y = tags:match("\\fscy[%s+]*(%d+[%.%d+]*)") end
-        if tags:match("\\fsp[%s+]*%-?%d+[%.%d+]*") then l.styleref.spacing = tags:match("\\fsp[%s+]*(%-?%d+[%.%d+]*)") end
-        if tags:match("\\b[%s+]*1") then l.styleref.bold = true end
-        if tags:match("\\i[%s+]*1") then l.styleref.italic = true end
-        if tags:match("\\u[%s+]*1") then l.styleref.underline = true end
-        if tags:match("\\s[%s+]*1") then l.styleref.strikeout = true end
+    local left, tags = line.left, ""
+    if line.text:match("%b{}") then
+        tags = line.text:match("%b{}")
+        if tags:match("\\fn[%s+]*[^\\}]*") then line.styleref.fontname = tags:match("\\fn[%s+]*([^\\}]*)") end
+        if tags:match("\\fs[%s+]*%d+[%.%d+]*") then line.styleref.fontsize = tags:match("\\fs[%s+]*(%d+[%.%d+]*)") end
+        if tags:match("\\fscx[%s+]*%d+[%.%d+]*") then line.styleref.scale_x = tags:match("\\fscx[%s+]*(%d+[%.%d+]*)") end
+        if tags:match("\\fscy[%s+]*%d+[%.%d+]*") then line.styleref.scale_y = tags:match("\\fscy[%s+]*(%d+[%.%d+]*)") end
+        if tags:match("\\fsp[%s+]*%-?%d+[%.%d+]*") then line.styleref.spacing = tags:match("\\fsp[%s+]*(%-?%d+[%.%d+]*)") end
+        if tags:match("\\b[%s+]*1") then line.styleref.bold = true end
+        if tags:match("\\i[%s+]*1") then line.styleref.italic = true end
+        if tags:match("\\u[%s+]*1") then line.styleref.underline = true end
+        if tags:match("\\s[%s+]*1") then line.styleref.strikeout = true end
     end
-    local width = aegisub.text_extents(l.styleref, l.text_stripped)
     char.n, char.text = #tchar, ""
     for k = 1, char.n do
         char[k] = {}
         char[k].text_stripped = tchar[k]
         if char[k].text_stripped ~= " " then char_nob[#char_nob + 1] = char[k] end
-        char[k].width = aegisub.text_extents(l.styleref, tchar[k])
+        char[k].width = aegisub.text_extents(line.styleref, tchar[k])
         char[k].left = left
         char[k].center = left + char[k].width / 2
-        char[k].start_time = l.start_time
-        char[k].end_time = l.end_time
+        char[k].right = left + char[k].width
+        char[k].start_time = line.start_time
+        char[k].end_time = line.end_time
         char[k].duration = char[k].end_time - char[k].start_time
         left = left + char[k].width
     end
     char_nob.text = char.text
-    return char_nob, width
+    return char_nob
 end
 
 KE.text.bezier = function(line, Shape, Char_x, Char_y, Mode, Offset) -- função que gera a curva bezier através de cordenadas de shapes
@@ -389,8 +388,7 @@ local master = function(subs, sel)
             local meta, style = tags2style(subs, l.text)
             karaskel.preproc_line(subs, meta, style, l)
             local line = table.copy(l)
-            local charC, lwidth = KE.dochar(line)
-            line.width = lwidth
+            local charC = KE.dochar(line)
             --
             local raw_txt, tags = line.text, ""
             local shp, mds, offst = GUI[6].value, GUI[4].value, GUI[5].value
@@ -429,10 +427,21 @@ local master = function(subs, sel)
             for k = 1, #charC do
                 line.comment = false
                 local char = charC[k]
-                local curve = KE.text.bezier(line, shape, char.center, line.middle, mds, offst)
+                local vx, vy = 0, 0
+                if line.styleref.align == 1 then vx, vy = char.left, line.bottom
+                    elseif line.styleref.align == 2 then vx, vy = char.center, line.bottom
+                    elseif line.styleref.align == 3 then vx, vy = char.right, line.bottom
+                    elseif line.styleref.align == 4 then vx, vy = char.left, line.middle
+                    elseif line.styleref.align == 5 then vx, vy = char.center, line.middle
+                    elseif line.styleref.align == 6 then vx, vy = char.right, line.middle
+                    elseif line.styleref.align == 7 then vx, vy = char.left, line.top
+                    elseif line.styleref.align == 8 then vx, vy = char.center, line.top
+                    elseif line.styleref.align == 9 then vx, vy = char.right, line.top
+                end
+                local curve = KE.text.bezier(line, shape, vx, vy, mds, offst)
                 local li, ld = char.start_time, char.duration
                 if mds == "Around" then
-                    curve = KE.text.bezier(line, shape, char.center, line.middle, 4, (k - 1)/(#charC - 1))
+                    curve = KE.text.bezier(line, shape, vx, vy, 4, (k - 1)/(#charC - 1))
                     line.text = string.format("{%s}%s", curve .. tags:sub(2, -2), char.text_stripped)
                     subs.insert(i + add + 1, line)
                     add = add + 1
@@ -440,7 +449,7 @@ local master = function(subs, sel)
                     if offst <= 0 then offst = 1 end
                     local loop = KE.math.round(line.duration/(frame_dur * offst), 3)
                     for j = 1, loop do
-                        curve = KE.text.bezier(line, shape, char.center, line.middle, 4, (j - 1)/(loop - 1))
+                        curve = KE.text.bezier(line, shape, vx, vy, 4, (j - 1)/(loop - 1))
                         line.start_time = li + ld * (j - 1) / loop
                         line.end_time = li + ld * j / loop
                         line.text = string.format("{%s}%s", curve .. tags:sub(2, -2), char.text_stripped)
@@ -451,7 +460,7 @@ local master = function(subs, sel)
                     if offst <= 0 then offst = 1 end
                     local loop = KE.math.round(line.duration/(frame_dur * offst), 3)
                     for j = 1, loop do
-                        curve = KE.text.bezier(line, shape, char.center, line.middle, 5, (j - 1)/(loop - 1))
+                        curve = KE.text.bezier(line, shape, vx, vy, 5, (j - 1)/(loop - 1))
                         line.start_time = li + ld * (j - 1) / loop
                         line.end_time = li + ld * j / loop
                         line.text = string.format("{%s}%s", curve .. tags:sub(2, -2), char.text_stripped)
