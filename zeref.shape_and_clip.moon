@@ -1,6 +1,6 @@
 zeref = require 'lib-zeref.zeref-utils'
 
-script_description = "Basically, it transforms your text into a clip and moves according to the coordinates of the positions you specify."
+script_description = "A series of macros for modifying shapes and clips."
 script_version = "1.0"
 
 master_text_shape_to_clip = (subs, sel) ->
