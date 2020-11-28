@@ -17,7 +17,7 @@ all_lines_index = (subs) -> -- return index of all lines in one table
         l = subs[i]
         if l.class == "dialogue"
             table.insert idx, k
-            k = k + 1
+            k += 1
     return idx
 
 replace_selecteds_lines = (subs, sel) -> -- replace previous selecteds lines with lines from txt file
@@ -37,20 +37,27 @@ replace_all_lines = (subs) -> -- replace previous all lines with lines from txt 
         if l.class == "dialogue"
             if #lines == all_lines[#all_lines]
                 l.text = lines[k]
-            k = k + 1
+            k += 1
         subs[i] = l
 
 interface = (subs) -> -- interface
-    gui = {{class: "textbox", name: "lines", x: 0, y: 0, width: 29, height: 10, text: ""}}
+    gui = {
+        {class: "textbox", name: "lines", x: 0, y: 0, width: 29, height: 10, text: ""}
+        {class: "checkbox", label: "Remove Tags?", name: "ktags", x: 0, y: 10, value: true}
+    }
     lines, k = "", 1
     for i = 1, #subs
         if subs[i].class == "dialogue"
             l = subs[i]
             lines = lines .. string.format("[%s]: ", k) .. l.text .. "\n\n" -- Show all lines in textbox :O
-            k = k + 1
+            k += 1
         lines = lines\sub 1, -2
     gui[1].text = lines
     return gui
+
+kill_tags = (tags) -> -- remove tags
+    tags = tags\gsub("%b{}", "")\gsub("\\N", " ")\gsub("\\n", " ")\gsub("\\h", " ")
+    return tags
 
 cap_lines = (subs, sel, all) -> -- capture all lines or selected lines and add in one table
     lines = {}
@@ -61,13 +68,12 @@ cap_lines = (subs, sel, all) -> -- capture all lines or selected lines and add i
     return lines
 
 save_lines = (subs, sel) ->
-    GUI = interface(subs)
-    bx, ck = aegisub.dialog.display GUI, {"All", "Selecteds", "Remove Index"}
-    v_lines, GUI[1].text = "", ck.lines
-    --
+    GUI = interface subs
+    bx, ck = aegisub.dialog.display GUI, {"All", "Selected", "Remove Index"}
     if bx == "Remove Index"
         GUI[1].text = GUI[1].text\gsub "%b[]%: ", ""
-        bx, ck = aegisub.dialog.display GUI, {"All", "Selecteds", "Remove Index"}
+        bx, ck = aegisub.dialog.display GUI, {"All", "Selected", "Remove Index"}
+    v_lines, GUI[1].text, GUI[2].value = "", ck.lines, ck.ktags
     if bx == "All"
         filename = aegisub.dialog.save "Save Lines", "", "", "Save txt file (.txt)|.txt", false
         if filename
@@ -76,11 +82,14 @@ save_lines = (subs, sel) ->
                 for k = 1, #lines
                     v_lines = v_lines .. lines[k] .. "\n"
                 v_lines = v_lines\sub 1, -2
-                file\write v_lines
+                if GUI[2].value
+                    file\write kill_tags(v_lines)
+                else
+                    file\write v_lines
                 file\close!
         else
             aegisub.cancel!
-    elseif bx == "Selecteds"
+    elseif bx == "Selected"
         filename = aegisub.dialog.save "Save Lines", "", "", "Save txt file (.txt)|.txt", false
         if filename
             file, lines = io.open(filename, "w"), cap_lines(subs, sel)
@@ -88,7 +97,10 @@ save_lines = (subs, sel) ->
                 for k = 1, #lines
                     v_lines = v_lines .. lines[k] .. "\n"
                 v_lines = v_lines\sub 1, -2
-                file\write v_lines
+                if GUI[2].value
+                    file\write kill_tags(v_lines)
+                else
+                    file\write v_lines
                 file\close!
         else
             aegisub.cancel!
@@ -96,5 +108,5 @@ save_lines = (subs, sel) ->
         aegisub.cancel!
 
 aegisub.register_macro "Zeref Macros/TXT Extension/TXT to Ass/All Lines", script_description, replace_all_lines
-aegisub.register_macro "Zeref Macros/TXT Extension/TXT to Ass/Selected Lines", script_description, replace_selecteds_lines
+aegisub.register_macro "Zeref Macros/TXT Extension/TXT to Ass/Selected Lines", script_description, replace_selected_lines
 aegisub.register_macro "Zeref Macros/TXT Extension/Ass to TXT", script_description, save_lines
