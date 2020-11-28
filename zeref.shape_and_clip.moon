@@ -1,6 +1,7 @@
 zeref = require 'lib-zeref.zeref-utils'
 
 script_description = "A series of macros for modifying shapes and clips."
+script_author = "Zeref"
 script_version = "1.0"
 
 master_text_shape_to_clip = (subs, sel) ->
