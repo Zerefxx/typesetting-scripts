@@ -2,6 +2,7 @@ zeref = require 'lib-zeref.zeref-utils'
 
 script_name = "Everything Interpolations"
 script_description = "Interpolates from selected tags and by characters."
+script_author = "Zeref"
 script_version = "1.6"
 
 --
@@ -283,8 +284,8 @@ local pols = function(loop, line, val_i, val_f, val_buttom)
                 local mx1_i, my1_i, mx2_i, my2_i, mt1_i, mt2_i = val_i:match("\\move%((%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%d+[%.%d+]*),(%d+[%.%d+]*)%)")
                 local mx1_f, my1_f, mx2_f, my2_f, mt1_f, mt2_f = val_f:match("\\move%((%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%d+[%.%d+]*),(%d+[%.%d+]*)%)")
                 if mt1_i == nil and mt2_i == nil and mt1_f == nil and mt2_f == nil then
-                    mx1_i, my1_i, mx2_i, my2_i = val_i:match("\\move%((%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*)")
-                    mx1_f, my1_f, mx2_f, my2_f = val_f:match("\\move%((%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*)")
+                    mx1_i, my1_i, mx2_i, my2_i = val_i:match("\\move%((%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*)%)")
+                    mx1_f, my1_f, mx2_f, my2_f = val_f:match("\\move%((%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*)%)")
                     mx1_i, my1_i, mx2_i, my2_i = tonumber(mx1_i), tonumber(my1_i), tonumber(mx2_i), tonumber(my2_i)
                     n_vals[28][k] = sf("\\move(%s,%s,%s,%s)", ipol_n(mod, mx1_i, mx1_f), ipol_n(mod, my1_i, my1_f), ipol_n(mod, mx2_i, mx2_f), ipol_n(mod, my2_i, my2_f))
                 elseif mt1_i ~= nil and mt2_i ~= nil and mt1_f ~= nil and mt2_f ~= nil then
@@ -292,13 +293,13 @@ local pols = function(loop, line, val_i, val_f, val_buttom)
                     mx1_f, my1_f, mx2_f, my2_f, mt1_f, mt2_f = tonumber(mx1_f), tonumber(my1_f), tonumber(mx2_f), tonumber(my2_f), tonumber(mt1_f), tonumber(mt2_f)
                     n_vals[28][k] = sf("\\move(%s,%s,%s,%s,%s,%s)", ipol_n(mod, mx1_i, mx1_f), ipol_n(mod, my1_i, my1_f), ipol_n(mod, mx2_i, mx2_f),ipol_n(mod, my2_i, my2_f), ipol_n(mod, mt1_i, mt1_f), ipol_n(mod, mt2_i, mt2_f))
                 elseif mt1_i == nil and mt2_i == nil and mt1_f ~= nil and mt2_f ~= nil then
-                    mx1_i, my1_i, mx2_i, my2_i = val_i:match("\\move%((%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*)")
-                    mx1_f, my1_f, mx2_f, my2_f = val_f:match("\\move%((%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*)")
+                    mx1_i, my1_i, mx2_i, my2_i = val_i:match("\\move%((%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*)%)")
+                    mx1_f, my1_f, mx2_f, my2_f = val_f:match("\\move%((%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*)%)")
                     mx1_i, my1_i, mx2_i, my2_i = tonumber(mx1_i), tonumber(my1_i), tonumber(mx2_i), tonumber(my2_i)
                     n_vals[28][k] = sf("\\move(%s,%s,%s,%s,%s,%s)", ipol_n(mod, mx1_i, mx1_f), ipol_n(mod, my1_i, my1_f), ipol_n(mod, mx2_i, mx2_f),ipol_n(mod, my2_i, my2_f), rd(0 + mt1_f * mod, 3), rd(0 + mt2_f * mod, 3))
                 elseif mt1_i ~= nil and mt2_i ~= nil and mt1_f == nil and mt2_f == nil then
-                    mx1_i, my1_i, mx2_i, my2_i = val_i:match("\\move%((%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*)")
-                    mx1_f, my1_f, mx2_f, my2_f = val_f:match("\\move%((%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*)")
+                    mx1_i, my1_i, mx2_i, my2_i = val_i:match("\\move%((%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*)%)")
+                    mx1_f, my1_f, mx2_f, my2_f = val_f:match("\\move%((%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*),(%-?%d+[%.%d+]*)%)")
                     mx1_i, my1_i, mx2_i, my2_i = tonumber(mx1_i), tonumber(my1_i), tonumber(mx2_i), tonumber(my2_i)
                     n_vals[28][k] = sf("\\move(%s,%s,%s,%s,%s,%s)", ipol_n(mod, mx1_i, mx1_f), ipol_n(mod, my1_i, my1_f), ipol_n(mod, mx2_i, mx2_f),ipol_n(mod, my2_i, my2_f), rd(mt1_i - mt1_i * mod, 3), rd(mt2_i - mt2_i * mod, 3))
                 end
@@ -387,7 +388,6 @@ local in_fn = function(subs, sel) -- retorna os valores referentes a primeira e 
 end
 
 local in_line = function(subs, sel)
-    local meta, styles = karaskel.collect_head(subs)
     local vals_in = in_fn(subs, sel)
     local text, tags, rtags = "", "", ""
     aegisub.progress.task("Processing...")
@@ -395,6 +395,7 @@ local in_line = function(subs, sel)
         local k = _
         aegisub.progress.set((i - 1) / #sel * 100)
         local l = subs[i]
+        local meta, styles = zeref.tags2style(subs, l)
         karaskel.preproc_line(subs, meta, styles, l)
         local rtext = l.text
         local ntags = in_tags(l, vals_in.tags[1], vals_in.tags[2], #sel)
