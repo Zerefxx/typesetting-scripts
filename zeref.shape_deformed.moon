@@ -88,4 +88,4 @@ wobble_config = (subs, sel) ->
         else
             return wobble_ini subs, sel, vals, false, true
 
-aegisub.register_macro "Zeref Macros/Shape Deformed", script_description, wobble_config
+aegisub.register_macro "Zeref Macros/Shapes - Clips/Text or Shape Deformed", script_description, wobble_config
