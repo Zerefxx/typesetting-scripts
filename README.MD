@@ -1,1 +1,1 @@
-All of these files depend on the zeref-lib folder.
+All of these files depend on the ZF folder.
