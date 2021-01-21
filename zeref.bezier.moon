@@ -166,7 +166,7 @@ BEZIER = (line, Shape, Char_x, Char_y, Mode, Offset) ->
     cont_point = pyointa.shape2coord(Shape)
     for i = 1, #cont_point
         for k = 1, #cont_point[i]
-            Blength = Blength + pyointa.getBezierLength(cont_point[i][k], 0, 1.0, nN)
+            Blength += pyointa.getBezierLength(cont_point[i][k], 0, 1.0, nN)
 
     Offset = Offset or 0
     lineoffset = switch Mode
