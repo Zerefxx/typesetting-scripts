@@ -5,6 +5,44 @@ export script_version = "1.0.0"
 -- LIB
 zf = require "ZF.utils"
 
+gradient_defs = {}
+gradient_defs.modes = {
+    "Vertical"
+    "Horizontal"
+}
+
+INTERFACE = {
+    {class: "dropdown", name: "mode", items: gradient_defs.modes, value: gradient_defs.modes[1], x: 6, y: 1}
+    {class: "label", label: "Gradient Types:                                  ", x: 6, y: 0}
+    {class: "label", label: "Gap Size: ", x: 6, y: 2}
+    {class: "intedit", name: "px", x: 6, y: 3, min: 1, value: 2}
+    {class: "label", label: "Accel: ", x: 6, y: 4}
+    {class: "floatedit", name: "ac", x: 6, y: 5, value: 1}
+    {class: "checkbox", label: "Save modifications?", name: "sv", x: 6, y: 6, value: false}
+    {class: "checkbox", label: "Remove first line?", name: "act", x: 6, y: 7, value: false}
+    {class: "label", label: "\nColors: ", x: 6, y: 8}
+    {class: "color", name: "color1", x: 6, y: 9, height: 1, width: 1, value: "#FFFFFF"}
+    {class: "color", name: "color2", x: 6, y: 10, height: 1, width: 1, value: "#FF0000"}
+}
+
+SAVECONFIG = (gui, ck) ->
+    cap_GUI = table.copy(gui)
+    vals_write = "GRADIENT CONFIG - VERSION #{script_version}\n\n"
+    cap_GUI[1].value, cap_GUI[4].value = ck.mode, ck.px
+    cap_GUI[6].value, cap_GUI[7].value = ck.ac, ck.sv
+    cap_GUI[8].value = ck.act
+
+    c = 1
+    for j = 10, #cap_GUI
+        cap_GUI[j].value = ck["color#{c}"]
+        c += 1
+
+    for k, v in ipairs cap_GUI do vals_write ..= "{#{v.name} = #{v.value}}\n" if v.name
+    cfg_save = aegisub.decode_path("?user") .. "\\gradient_config.cfg"
+    file = io.open cfg_save, "w"
+    file\write vals_write
+    file\close!
+
 READCONFIG = (filename) ->
     SEPLINES = (val) ->
         sep_vals = {n: {}, v: {}}
@@ -51,46 +89,8 @@ LOADCONFIG = (gui) ->
 
     new_gui
 
-gradient_defs = {}
-gradient_defs.modes = {
-    "Vertical"
-    "Horizontal"
-}
-
-INTERFACE = {
-    {class: "dropdown", name: "mode", items: gradient_defs.modes, value: gradient_defs.modes[1], x: 6, y: 1}
-    {class: "label", label: "Gradient Types:                                  ", x: 6, y: 0}
-    {class: "label", label: "Gap Size: ", x: 6, y: 2}
-    {class: "intedit", name: "px", x: 6, y: 3, min: 1, value: 2}
-    {class: "label", label: "Accel: ", x: 6, y: 4}
-    {class: "floatedit", name: "ac", x: 6, y: 5, value: 1}
-    {class: "checkbox", label: "Save modifications?", name: "sv", x: 6, y: 6, value: false}
-    {class: "checkbox", label: "Remove first line?", name: "act", x: 6, y: 7, value: false}
-    {class: "label", label: "\nColors: ", x: 6, y: 8}
-    {class: "color", name: "color1", x: 6, y: 9, height: 1, width: 1, value: "#FFFFFF"}
-    {class: "color", name: "color2", x: 6, y: 10, height: 1, width: 1, value: "#FF0000"}
-}
-
-SAVECONFIG = (gui, ck) ->
-    cap_GUI = table.copy(gui)
-    vals_write = "GRADIENT CONFIG - VERSION #{script_version}\n\n"
-    cap_GUI[1].value, cap_GUI[4].value = ck.mode, ck.px
-    cap_GUI[6].value, cap_GUI[7].value = ck.ac, ck.sv
-    cap_GUI[8].value = ck.act
-
-    c = 1
-    for j = 10, #cap_GUI
-        cap_GUI[j].value = ck["color#{c}"]
-        c += 1
-
-    for k, v in ipairs cap_GUI do vals_write ..= "{#{v.name} = #{v.value}}\n" if v.name
-    cfg_save = aegisub.decode_path("?user") .. "\\gradient_config.cfg"
-    file = io.open cfg_save, "w"
-    file\write vals_write
-    file\close!
-
 make_cuts = (shape, pixel, nx, ny, mode) ->
-    OFFSET = 10
+    OFFSET, oft = 10, 2
     shape_width, shape_height = zf.poly\dimension(shape)
     shape_width, shape_height = shape_width + OFFSET, shape_height + OFFSET
 
@@ -112,8 +112,8 @@ make_cuts = (shape, pixel, nx, ny, mode) ->
             loop = shape_width / pixel
             for k = 1, loop
                 mod = (k - 1) / (loop - 1)
-                interpol_l = zf.math\interpolation(mod, 0, shape_width - pixel)
-                interpol_r = zf.math\interpolation(mod, pixel, shape_width)
+                interpol_l = zf.math\interpolation(mod, 0, shape_width - pixel) - oft
+                interpol_r = zf.math\interpolation(mod, pixel, shape_width) + oft
 
                 clip[k] = "\\clip(#{(distx + nx) + interpol_l},#{(disty + ny)},#{(distx + nx) + interpol_r},#{(disty + ny) + shape_height})"
                 clip[k] = zf.util\clip_to_draw(clip[k])
@@ -123,8 +123,8 @@ make_cuts = (shape, pixel, nx, ny, mode) ->
             loop = shape_height / pixel
             for k = 1, loop
                 mod = (k - 1) / (loop - 1)
-                interpol_t = zf.math\interpolation(mod, 0, shape_height - pixel)
-                interpol_b = zf.math\interpolation(mod, pixel, shape_height)
+                interpol_t = zf.math\interpolation(mod, 0, shape_height - pixel) - oft
+                interpol_b = zf.math\interpolation(mod, pixel, shape_height) + oft
 
                 clip[k] = "\\clip(#{(distx + nx)},#{(disty + ny) + interpol_t},#{(distx + nx) + shape_width},#{(disty + ny) + interpol_b})"
                 clip[k] = zf.util\clip_to_draw(clip[k])
