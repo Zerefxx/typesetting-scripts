@@ -3,9 +3,9 @@ requireffi = require("requireffi.requireffi")
 
 C_6 = switch ffi.arch
     when "x86"
-        C_6 = requireffi("ZF.clipper.x86.clipper_6")
+        requireffi("ZF.clipper.x86.clipper_6")
     when "x64"
-        C_6 = requireffi("ZF.clipper.x64.clipper_6")
+        requireffi("ZF.clipper.x64.clipper_6")
 
 ffi.cdef [[
     typedef struct __zf_int_point { int64_t x, y; } zf_int_point;
