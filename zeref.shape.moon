@@ -1,12 +1,14 @@
-export script_name = "Everything For Shape"
+export script_name = "Everything Shape"
 export script_description = "Do \"everything\" you need for a shape!"
 export script_author = "Zeref"
-export script_version = "2.2.0"
+export script_version = "1.1.5"
 -- LIB
 zf = require "ZF.utils"
 
 shape_to_clip = (subs, sel) ->
+    aegisub.progress.task("Generating Clip...")
     for _, i in ipairs(sel)
+        aegisub.progress.set((i - 1) / #sel * 100)
         l = subs[i]
 
         meta, styles = zf.util\tags2styles(subs, l)
@@ -26,9 +28,12 @@ shape_to_clip = (subs, sel) ->
             error("shape expected")
 
         subs[i] = l
+    aegisub.progress.set(100)
 
 clip_to_shape = (subs, sel) ->
+    aegisub.progress.task("Generating Shape...")
     for _, i in ipairs(sel)
+        aegisub.progress.set((i - 1) / #sel * 100)
         l = subs[i]
 
         meta, styles = zf.util\tags2styles(subs, l)
@@ -46,9 +51,12 @@ clip_to_shape = (subs, sel) ->
             error("clip expected")
             
         subs[i] = l
+    aegisub.progress.set(100)
 
 shape_origin = (subs, sel) ->
+    aegisub.progress.task("Generating Shape...")
     for _, i in ipairs(sel)
+        aegisub.progress.set((i - 1) / #sel * 100)
         l = subs[i]
 
         meta, styles = zf.util\tags2styles(subs, l)
@@ -81,15 +89,18 @@ shape_origin = (subs, sel) ->
             error("shape expected")
 
         subs[i] = l
+    aegisub.progress.set(100)
 
 shape_poly = (subs, sel) ->
+    aegisub.progress.task("Generating Shape...")
     for _, i in ipairs sel
+        aegisub.progress.set((i - 1) / #sel * 100)
         l = subs[i]
 
         meta, styles = zf.util\tags2styles(subs, l)
         karaskel.preproc_line(subs, meta, styles, l)
         coords = zf.util\find_coords(l, meta)
-        tags = zf.tags(l.text)\remove("shape")
+        tags = zf.tags(l.text)\remove("shape_poly")
         detect = zf.tags!\remove("full", l.text)
 
         shape = nil
@@ -99,17 +110,17 @@ shape_poly = (subs, sel) ->
             error("shape expected")
 
         tags ..= "\\pos(#{coords.pos.x},#{coords.pos.y})" unless tags\match("\\pos%b()") and not tags\match("\\move%b()")
-        tags = tags\gsub("\\an%d", "\\an7")
-        tags ..= "\\an7" unless tags\match "\\an%d"
-
         shape_poly = zf.poly\org_points(shape, l.styleref.align)
         __tags = zf.tags\clean("{#{tags}}")
         l.text = "#{__tags}#{shape_poly}"
 
         subs[i] = l
+    aegisub.progress.set(100)
 
 shape_expand = (subs, sel) ->
+    aegisub.progress.task("Generating Shape...")
     for _, i in ipairs(sel)
+        aegisub.progress.set((i - 1) / #sel * 100)
         l = subs[i]
 
         meta, styles = zf.util\tags2styles(subs, l)
@@ -131,9 +142,95 @@ shape_expand = (subs, sel) ->
         l.text = "#{__tags}#{shape_expanded}"
 
         subs[i] = l
+    aegisub.progress.set(100)
 
-shape_clear = (subs, sel) ->
+shape_smooth_edges = (subs, sel) ->
+    GUI = {
+        {class: "label", label: ":Smooth Size:                                   ", x: 0, y: 0}
+        {class: "intedit", name: "v", x: 0, y: 1, value: 2}
+    }
+
+    bx, ck = aegisub.dialog.display(GUI, {"Run", "Cancel"}, {close: "Cancel"})
+    if bx == "Run"
+        aegisub.progress.task("Generating Shape...")
+        for _, i in ipairs(sel)
+            aegisub.progress.set((i - 1) / #sel * 100)
+            l = subs[i]
+
+            meta, styles = zf.util\tags2styles(subs, l)
+            karaskel.preproc_line(subs, meta, styles, l)
+            coords = zf.util\find_coords(l, meta)
+            tags = zf.tags(l.text)\remove("shape")
+            detect = zf.tags!\remove("full", l.text)
+
+            shape = nil
+            if detect\match("m%s+%-?%d+[%.%d]*%s+%-?%d+[%.%-%dmlb ]*")
+                shape = detect
+            else
+                error("shape expected")
+
+            tags ..= "\\pos(#{coords.pos.x},#{coords.pos.y})" unless tags\match("\\pos%b()") and not tags\match("\\move%b()")
+            shape_smooth_edges = zf.poly\smooth_edges(shape, ck.v)
+
+            __tags = zf.tags\clean("{#{tags}}")
+            l.text = "#{__tags}#{shape_smooth_edges}"
+
+            subs[i] = l
+        aegisub.progress.set(100)
+    else
+        aegisub.cancel!
+
+shape_simplify = (subs, sel) ->
+    GUI = {
+        {class: "label", label: ":Simplify Mode:", x: 0, y: 0}
+        {class: "dropdown", name: "vf", items: {"Line Only", "Line and Bezier"}, x: 0, y: 1, width: 9, height: 1, value: "Line Only"}
+        {class: "label", label: ":Tolerance:", x: 0, y: 2}
+        {class: "floatedit", name: "n", x: 0, y: 3, width: 9, height: 1, min: 0, value: 1}
+    }
+
+    bx, ck = aegisub.dialog.display(GUI, {"Run", "Cancel"}, {close: "Cancel"})
+    if bx == "Run"
+        aegisub.progress.task("Generating Shape...")
+        for _, i in ipairs(sel)
+            aegisub.progress.set((i - 1) / #sel * 100)
+            l = subs[i]
+
+            meta, styles = zf.util\tags2styles(subs, l)
+            karaskel.preproc_line(subs, meta, styles, l)
+            coords = zf.util\find_coords(l, meta)
+            tags = zf.tags(l.text)\remove("shape_poly")
+            detect = zf.tags!\remove("full", l.text)
+
+            shape = nil
+            if detect\match("m%s+%-?%d+[%.%d]*%s+%-?%d+[%.%-%dmlb ]*")
+                shape = detect
+            else
+                error("shape expected")
+            shape = zf.poly\org_points(shape, l.styleref.align)
+
+            tags ..= "\\pos(#{coords.pos.x},#{coords.pos.y})" unless tags\match("\\pos%b()") and not tags\match("\\move%b()")
+            shape_simplify = (ck.vf == "Line Only") and zf.poly\simplify(shape, nil, (ck.n > 50) and 50 or ck.n) or zf.poly\simplify(shape, true, ck.n)
+
+            __tags = zf.tags\clean("{#{tags}}")
+            l.text = "#{__tags}#{shape_simplify}"
+
+            subs[i] = l
+        aegisub.progress.set(100)
+    else
+        aegisub.cancel!
+
+shape_split = (subs, sel) ->
+    GUI = {
+        {class: "label", label: ":Split Mode:", x: 0, y: 0}
+        {class: "dropdown", name: "spt", items: {"Full", "Only Line", "Only Bezier"}, x: 0, y: 1, width: 9, height: 1, value: "Full"}
+        {class: "label", label: ":Split Size:", x: 0, y: 2}
+        {class: "floatedit", name: "n", x: 0, y: 3, width: 9, height: 1, min: 0, value: 2}
+    }
+
+    bx, ck = aegisub.dialog.display(GUI, {"Run", "Cancel"}, {close: "Cancel"})
+    aegisub.progress.task("Generating Shape...")
     for _, i in ipairs(sel)
+        aegisub.progress.set((i - 1) / #sel * 100)
         l = subs[i]
 
         meta, styles = zf.util\tags2styles(subs, l)
@@ -149,18 +246,33 @@ shape_clear = (subs, sel) ->
             error("shape expected")
 
         tags ..= "\\pos(#{coords.pos.x},#{coords.pos.y})" unless tags\match("\\pos%b()") and not tags\match("\\move%b()")
-        shape_clear = zf.poly\simplify(shape)
+
+        if bx == "Run"
+            switch ck.spt
+                when "Full"
+                    shape_split = zf.shape(shape)\redraw(ck.n).code
+                when "Only Line"
+                    shape_split = zf.shape(shape)\redraw(ck.n, "line").code
+                when "Only Bezier"
+                    shape_split = zf.shape(shape)\redraw(ck.n, "bezier").code
+        else
+            aegisub.cancel!
 
         __tags = zf.tags\clean("{#{tags}}")
-        l.text = "#{__tags}#{shape_clear}"
+        l.text = "#{__tags}#{shape_split}"
 
         subs[i] = l
+    aegisub.progress.set(100)
 
 shape_merge = (subs, sel) ->
     generate = (subs, sel) ->
         index = {shapes: {}, an: {}, pos: {}, result: {}}
+        line = {}
         for _, i in ipairs(sel)
             l = subs[i]
+
+            l.comment = true
+            line = table.copy(l)
 
             meta, styles = zf.util\tags2styles(subs, l)
             karaskel.preproc_line(subs, meta, styles, l)
@@ -177,24 +289,20 @@ shape_merge = (subs, sel) ->
             table.insert(index.pos, coords.pos)
             table.insert(index.shapes, shape)
 
+            subs[i] = l
+
         index.final = ""
         for k = 1, #index.shapes
             index.result[k] = zf.poly\to_clip(index.shapes[k], index.an[k], index.pos[k].x, index.pos[k].y)
             index.final ..= index.result[k]
 
         index.final = zf.poly\simplify(zf.poly\unclip(index.final, index.an[1], index.pos[1].x, index.pos[1].y))
-        index
+        return index, line
 
-    local line
-    for _, i in ipairs(sel)
-        l = subs[i]
+    aegisub.progress.task("Generating Shape...")
+    aegisub.progress.set(100)
 
-        l.comment = true
-        line = table.copy(l)
-
-        subs[i] = l
-
-    infos_merge = generate(subs, sel)
+    infos_merge, line = generate(subs, sel)
     line.comment = false
 
     tags = zf.tags(subs[sel[1]].text)\remove("shape")
@@ -214,7 +322,9 @@ shape_move = (subs, sel) ->
 
     bx, ck = aegisub.dialog.display(GUI, {"Run", "Cancel"}, {close: "Cancel"})
     if bx == "Run"
+        aegisub.progress.task("Generating Shape...")
         for _, i in ipairs sel
+            aegisub.progress.set((i - 1) / #sel * 100)
             l = subs[i]
 
             meta, styles = zf.util\tags2styles(subs, l)
@@ -235,6 +345,7 @@ shape_move = (subs, sel) ->
             l.text = "#{__tags}#{shape_move}"
 
             subs[i] = l
+        aegisub.progress.set(100)
 
 shape_round = (subs, sel) ->
     GUI = {
@@ -244,7 +355,9 @@ shape_round = (subs, sel) ->
 
     bx, ck = aegisub.dialog.display(GUI, {"Run", "Cancel"}, {close: "Cancel"})
     if bx == "Run"
+        aegisub.progress.task("Generating Shape...")
         for _, i in ipairs sel
+            aegisub.progress.set((i - 1) / #sel * 100)
             l = subs[i]
 
             meta, styles = zf.util\tags2styles(subs, l)
@@ -265,9 +378,14 @@ shape_round = (subs, sel) ->
             l.text = "#{__tags}#{shape_round}"
 
             subs[i] = l
+        aegisub.progress.set(100)
+    else
+        aegisub.cancel!
 
 shape_clip = (subs, sel) ->
+    aegisub.progress.task("Generating Clip...")
     for _, i in ipairs(sel)
+        aegisub.progress.set((i - 1) / #sel * 100)
         l = subs[i]
 
         meta, styles = zf.util\tags2styles(subs, l)
@@ -299,9 +417,12 @@ shape_clip = (subs, sel) ->
         l.text = "#{__tags}#{shape_clip}" if shape_clip != ""
 
         subs[i] = l
+    aegisub.progress.set(100)
 
 text_to_shape = (subs, sel) ->
+    aegisub.progress.task("Generating Shape...")
     for _, i in ipairs(sel)
+        aegisub.progress.set((i - 1) / #sel * 100)
         l = subs[i]
 
         meta, styles = zf.util\tags2styles(subs, l)
@@ -319,9 +440,12 @@ text_to_shape = (subs, sel) ->
             error("text expected")
 
         subs[i] = l
+    aegisub.progress.set(100)
 
 text_to_clip = (subs, sel) ->
+    aegisub.progress.task("Generating Clip...")
     for _, i in ipairs(sel)
+        aegisub.progress.set((i - 1) / #sel * 100)
         l = subs[i]
 
         meta, styles = zf.util\tags2styles(subs, l)
@@ -340,16 +464,19 @@ text_to_clip = (subs, sel) ->
             error("text expected")
 
         subs[i] = l
-        
-aegisub.register_macro "Everything Shape/Shape to Clip", "Move the shape to a value relative to the clip.", shape_to_clip
-aegisub.register_macro "Everything Shape/Clip to Shape", "Move the clip to a value relative to the shape.", clip_to_shape
-aegisub.register_macro "Everything Shape/Shape Origin", "Move the shape to its original position.", shape_origin
-aegisub.register_macro "Everything Shape/Shape Poly", "Moves the shape to positions relative to an7.", shape_poly
-aegisub.register_macro "Everything Shape/Shape Expand", "Filters the tags and uses their values to filter the shape points.", shape_expand
-aegisub.register_macro "Everything Shape/Shape Clear", "Remove unnecessary vertices from a shape.", shape_clear
-aegisub.register_macro "Everything Shape/Shape Merge", "Can merge shapes.", shape_merge
-aegisub.register_macro "Everything Shape/Shape (i)Clip", "Cuts the shape from the value of the (i)clip found in the text.", shape_clip
-aegisub.register_macro "Everything Shape/Shape Move", "Move your shape.", shape_move
-aegisub.register_macro "Everything Shape/Shape Round", "Rounds the shape points according to the \"N\" value.", shape_round
-aegisub.register_macro "Everything Shape/Text to Shape", "Transform your text in a shape", text_to_shape
-aegisub.register_macro "Everything Shape/Text to Clip", "Transform your text in a clip", text_to_clip
+    aegisub.progress.set(100)
+
+aegisub.register_macro "#{script_name}/Shape to Clip", "Move the shape to a value relative to the clip.", shape_to_clip
+aegisub.register_macro "#{script_name}/Clip to Shape", "Move the clip to a value relative to the shape.", clip_to_shape
+aegisub.register_macro "#{script_name}/Shape Origin", "Move the shape to its original position.", shape_origin
+aegisub.register_macro "#{script_name}/Shape Poly", "Moves the shape to positions relative to an7.", shape_poly
+aegisub.register_macro "#{script_name}/Shape Expand", "Filters the tags and uses their values to filter the shape points.", shape_expand
+aegisub.register_macro "#{script_name}/Shape Smooth Edges", "Smooths the edges of a shape.", shape_smooth_edges
+aegisub.register_macro "#{script_name}/Shape Simplify", "Remove unnecessary vertices from a shape.", shape_simplify
+aegisub.register_macro "#{script_name}/Shape Merge", "Can merge shapes.", shape_merge
+aegisub.register_macro "#{script_name}/Shape (i)Clip", "Cuts the shape from the value of the (i)clip found in the text.", shape_clip
+aegisub.register_macro "#{script_name}/Shape Move", "Move your shape.", shape_move
+aegisub.register_macro "#{script_name}/Shape Round", "Rounds the shape points according to the \"N\" value.", shape_round
+aegisub.register_macro "#{script_name}/Shape Split", "Splits the shape into small parts.", shape_split
+aegisub.register_macro "#{script_name}/Text to Shape", "Transform your text in a shape", text_to_shape
+aegisub.register_macro "#{script_name}/Text to Clip", "Transform your text in a clip", text_to_clip
